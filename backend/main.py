@@ -39,7 +39,7 @@ def answer_query(client: OpenAI, query: str, book_text: str) -> ChatCompletion:
         messages=[
             {
                 "role": "system",
-                "content": f"Use only the advice in this book, which I'm providing as a base 64 encoded pdf, to answer my query: {book_text}. Supply an answer, then specific quotes from the book that support your answer.",
+                "content": f"Use only the advice in this book, which I'm providing as a base 64 encoded pdf, to answer my query: {book_text}. Supply an answer, then specific quotes from the book that support your answer. Output your answer in markdown format.",
             },
             {"role": "user", "content": query},
         ],
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     # Alleged Gemini Tokenizer (gives 1/4 the tokens of tiktoken)
 
     SOURCE_BOOK = "inputs/aol_book.pdf"
-    BOOK_TEXT_FILE = "book_text.txt"
+    BOOK_TEXT_FILE = "outputs/aol_book_text.txt"
+    RESPONSE_FILE = "outputs/response.md"
 
     queries = [
         "I feel like I've always struggled with feeling good about myself and it's really affecting my life right now, what should I do?",
@@ -70,7 +71,7 @@ if __name__ == "__main__":
         "How do I think more about the things that excite me than the things that scare me?",
     ]
 
-    query = queries[0]
+    query = queries[4]
 
     with open(SOURCE_BOOK, "rb") as file:
         reader = PyPDF2.PdfReader(file)
@@ -86,5 +87,9 @@ if __name__ == "__main__":
 
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     response = answer_query(client, query, book_text)
-    print(f"Response Text: {response.choices[0].message.content}")
+    # Save response as markdown file
+    response_text = response.choices[0].message.content or ""
+    with open("response.md", "w", encoding="utf-8") as f:
+        f.write(response_text)
+    print(f"Response saved to response.md. Text: {response_text}")
     print(f"Cost: {get_cost_from_response(response, 'gpt-4.1-nano')}")
