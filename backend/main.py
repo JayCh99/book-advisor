@@ -1,10 +1,21 @@
 from openai import OpenAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-client = OpenAI(api_key="sk-proj-1234567890")
+def answer_query(client: OpenAI, query: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini", messages=[{"role": "user", "content": query}]
+    )
 
-response = client.chat.completions.create(
-    model="gpt-4o-mini", messages=[{"role": "user", "content": "Hello, how are you?"}]
-)
+    if response.choices[0].message.content is None:
+        raise ValueError("No response from OpenAI")
 
-print(response.choices[0].message.content)
+    return response.choices[0].message.content
+
+
+if __name__ == "__main__":
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    print(answer_query(client, "Hello, how are you?"))
