@@ -1,0 +1,7 @@
+{
+    // Use Ruff for linting and formatting
+    "editor.formatOnSave": true,
+    // Use Pyright for type checking
+    "python.analysis.typeCheckingMode": "basic", // or "strict" for stricter checks
+    "python.analysis.diagnosticMode": "workspace", // checks all files in workspace
+}
