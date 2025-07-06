@@ -3,20 +3,27 @@ from openai.types.chat.chat_completion import ChatCompletion
 import os
 from dotenv import load_dotenv
 import base64
+import tiktoken
+import PyPDF2
+
 
 load_dotenv()
 
 
-# Pricing table for OpenAI models (per 1M tokens)
-MODEL_PRICING = {
-    # GPT-4.1 models
-    "gpt-4.1": {"input": 2.00, "output": 8.00},
-    "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
-    "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-}
+def count_tokens(text: str, model: str) -> int:
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))
 
 
 def get_cost_from_response(response: ChatCompletion, model: str) -> float:
+    # Pricing table for OpenAI models (per 1M tokens)
+    MODEL_PRICING = {
+        # GPT-4.1 models
+        "gpt-4.1": {"input": 2.00, "output": 8.00},
+        "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
+        "gpt-4.1-nano-2025-04-14": {"input": 0.10, "output": 0.40},
+    }
+
     if not response.usage:
         raise ValueError("No usage data in response")
 
@@ -26,16 +33,13 @@ def get_cost_from_response(response: ChatCompletion, model: str) -> float:
     ) / 1000000
 
 
-def answer_query(client: OpenAI, query: str) -> ChatCompletion:
-    with open("book.pdf", "rb") as file:
-        pdf_base64 = base64.b64encode(file.read()).decode("utf-8")
-
+def answer_query(client: OpenAI, query: str, book_text: str) -> ChatCompletion:
     response = client.chat.completions.create(
         model="gpt-4.1-nano",
         messages=[
             {
                 "role": "system",
-                "content": f"Use only the advice in this book, which I'm providing as a base 64 encoded pdf, to answer my query: {pdf_base64}.",
+                "content": f"Use only the advice in this book, which I'm providing as a base 64 encoded pdf, to answer my query: {book_text}. Supply an answer, then specific quotes from the book that support your answer.",
             },
             {"role": "user", "content": query},
         ],
@@ -48,6 +52,15 @@ def answer_query(client: OpenAI, query: str) -> ChatCompletion:
 
 
 if __name__ == "__main__":
+    # Elon Musk book: https://www.dirzon.com/file/telegram/eltstudentfiles/Elon_Musk_2023.pdf
+    # AOL Tokens: 1,459,692 (Base64), 100,000 (Text)
+    # Elon Musk Tokens: 47,693,743 (Base64), 411,047 (Text)
+
+    # Alleged Gemini Tokenizer (gives 1/4 the tokens of tiktoken)
+
+    SOURCE_BOOK = "inputs/aol_book.pdf"
+    BOOK_TEXT_FILE = "book_text.txt"
+
     queries = [
         "I feel like I've always struggled with feeling good about myself and it's really affecting my life right now, what should I do?",
         "I want to buy my sister a nice gift but I'm not sure what she'd like, what should I get her?",
@@ -57,12 +70,21 @@ if __name__ == "__main__":
         "How do I think more about the things that excite me than the things that scare me?",
     ]
 
-    with open("book.pdf", "rb") as file:
-        pdf_base64 = base64.b64encode(file.read()).decode("utf-8")
+    query = queries[0]
 
-    print(pdf_base64[: len(pdf_base64) // 100])
+    with open(SOURCE_BOOK, "rb") as file:
+        reader = PyPDF2.PdfReader(file)
+        book_text = ""
+        for page in reader.pages:
+            book_text += page.extract_text()
 
-    # client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    # response = answer_query(client, queries[0])
-    # print(get_cost_from_response(response, "gpt-4o-mini"))
-    # print(response.choices[0].message.content)
+    with open(BOOK_TEXT_FILE, "w", encoding="utf-8") as f:
+        f.write(book_text)
+    print(f"Book text dumped to {BOOK_TEXT_FILE}")
+
+    print(f"Book text tokens: {count_tokens(book_text, 'gpt-4o'):,}")
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    response = answer_query(client, query, book_text)
+    print(f"Response Text: {response.choices[0].message.content}")
+    print(f"Cost: {get_cost_from_response(response, 'gpt-4.1-nano')}")
