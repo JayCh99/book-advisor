@@ -211,3 +211,5 @@ outputs/
 #
 # Inputs
 inputs/
+
+.vite
