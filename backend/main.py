@@ -69,9 +69,10 @@ if __name__ == "__main__":
         "I have frequent headaches, help?",
         "I really love love. There's this girl I really like, how could I spend more time with her?",
         "How do I think more about the things that excite me than the things that scare me?",
+        "I just feel kind of empty. I love when I can enjoy that feeling and just be here right now",
     ]
 
-    query = queries[4]
+    query = queries[len(queries) - 1]
 
     with open(SOURCE_BOOK, "rb") as file:
         reader = PyPDF2.PdfReader(file)
